@@ -1,6 +1,28 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-04-10
+### Changed
+- UI Logic: Replaced the "Skip" button with a dynamic stateful button.
+- Interaction Flow: When in a chat, the button displays as "Stop." Clicking it ends the current session and reverts the button to "Find Match."
+- Control: Users must now explicitly click "Find Match" again to start a new search after stopping, providing a more controlled user experience.
+
+## [0.9.0] - 2026-04-10
+### Added
+- UI: Added a welcome modal that displays community guidelines and cautions (including the profanity ban warning) when a user first lands on the page.
+- UI: Implemented a live "Online Users" badge in the header to show the total number of currently connected clients.
+- Backend: Added WebSocket broadcasting to keep the online user count synchronized in real-time across all active sessions.
+
+## [0.8.1] - 2026-04-10
+### Changed
+- Moderation Logic: Simplified the 3-strike profanity rule. *Any* 3 profane messages (repetitive or unique, back-to-back or spaced out) will now trigger the 5-minute IP ban.
+- Partner Notification: Updated the system message sent to the innocent party upon a user's ban to: "We disconnected the stranger to maintain a good service."
+
+## [0.7.6] - 2026-04-10
+### Added
+- Security: Integrated `better_profanity` on the Python backend to automatically censor toxic language.
+- Messages are now sanitized server-side before being broadcast to the partner, preventing client-side bypasses.
+
 ## [0.7.3] - 2026-04-10
 ### Changed
 - UI Polish: Replaced the previous clunky moon icon with a clean, minimalist outlined SVG for better cross-browser rendering and a more modern aesthetic on the theme toggle button.
