@@ -1,6 +1,48 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-04-10
+### Changed
+- UI Polish: Replaced the previous clunky moon icon with a clean, minimalist outlined SVG for better cross-browser rendering and a more modern aesthetic on the theme toggle button.
+
+## [0.7.2] - 2026-04-10
+### Fixed
+- Reverted CSS layout engine back to stable `0.6.0` state. Removed the `position: fixed` bug that was freezing the app and corrupting the UI.
+- Implemented a much safer `data-theme` architecture that respects system defaults but allows manual toggling without breaking gradients.
+- Applied a non-destructive JavaScript `visualViewport` fix for the mobile keyboard that dynamically adjusts height without locking the screen.
+
+## [0.7.1] - 2026-04-10
+### Fixed
+- Hotfix: Resolved a CSS specificity bug introduced in 0.7.0 that corrupted the color palette. Restored native `@media` queries for base theming and isolated `data-theme` purely for manual overrides.
+
+## [0.7.0] - 2026-04-10
+### Added
+- Manual Dark/Light theme toggle button in the header.
+- Theme preference is now saved locally (`localStorage`) so it persists across visits.
+
+### Fixed
+- Fixed mobile virtual keyboard bug. Implemented the `visualViewport` API to ensure the chat input box stays perfectly anchored above the keyboard without glitchy scrolling.
+
+## [0.6.0] - 2026-04-10
+### Added
+- Rebranded the application to "Elgemo".
+
+### Changed
+- Major UI overhaul targeting a modern "2026" aesthetic (frosted glass, gradients, fluid layout).
+- Upgraded viewport sizing to `100dvh` to ensure the input box is never hidden under mobile browser address bars.
+- Changed default theme to emphasize a sleek, dark-mode native look with vibrant accents.
+
+### Fixed
+- Resolved a state bug where the "Start" button remained disabled after a partner disconnected, forcing a page refresh.
+
+## [0.5.0] - 2026-04-10
+### Changed
+- Total UI/UX overhaul. Implemented modern, mobile-responsive Flexbox layout.
+- Added automatic Dark/Light mode detection based on system preferences.
+- Chat messages are now styled as bubbles (Me on right, Stranger on left).
+- Replaced text typing indicator with a modern CSS bouncing-dot animation.
+- Bound Flask server to `host="0.0.0.0"` to allow local network and proper tunnel access.
+
 ## [0.4.0] - 2026-04-10
 ### Changed
 - Refactored architecture into a single-file deployment. 
