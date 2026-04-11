@@ -15,10 +15,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 profanity.load_censor_words() 
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 # ==========================================
-# FRONTEND: HTML/CSS/JS (Elgemo v1.0.4)
+# FRONTEND: HTML/CSS/JS (Elgemo v1.0.5)
 # ==========================================
 HTML_PAGE = f"""
 <!DOCTYPE html>
@@ -153,13 +153,27 @@ HTML_PAGE = f"""
         
         .header-left {{ display: flex; align-items: center; gap: 14px; }}
         
+        .logo-group {{
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }}
+        
         .header h1 {{ 
             font-size: 1.5rem; 
             font-weight: 800; 
+            line-height: 1;
             letter-spacing: -0.5px;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }}
+
+        .version-text {{
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }}
 
         .online-badge {{
@@ -168,7 +182,7 @@ HTML_PAGE = f"""
             border: 1px solid rgba(34, 197, 94, 0.3);
             padding: 4px 10px;
             border-radius: 999px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -247,17 +261,6 @@ HTML_PAGE = f"""
 
         #chatbox::-webkit-scrollbar {{ width: 6px; }}
         #chatbox::-webkit-scrollbar-thumb {{ background: var(--glass-border); border-radius: 10px; }}
-
-        .version-label {{
-            position: absolute;
-            bottom: 8px;
-            right: 12px;
-            font-size: 10px;
-            color: var(--text-secondary);
-            opacity: 0.5;
-            pointer-events: none;
-            font-weight: 500;
-        }}
 
         .message-row {{ display: flex; width: 100%; animation: slideInUp 0.3s ease-out forwards; }}
         .message-row.me {{ justify-content: flex-end; }}
@@ -352,8 +355,11 @@ HTML_PAGE = f"""
 
         <div class="header">
             <div class="header-left">
-                <h1>Elgemo</h1>
-                <span id="onlineCount" class="online-badge">1 Online</span>
+                <div class="logo-group">
+                    <h1>Elgemo</h1>
+                    <span class="version-text">v{VERSION}</span>
+                </div>
+                <span id="onlineCount" class="online-badge">1</span>
                 <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme"></button>
             </div>
             <div>
@@ -367,7 +373,6 @@ HTML_PAGE = f"""
                     <div class="dot"></div><div class="dot"></div><div class="dot"></div>
                 </div>
             </div>
-            <div class="version-label">v{VERSION}</div>
         </div>
         
         <div class="input-area">
@@ -457,7 +462,7 @@ HTML_PAGE = f"""
 
         function clearChat() {{
             Array.from(chatbox.children).forEach(child => {{
-                if(child.id !== "typingRow" && !child.classList.contains('version-label')) {{
+                if(child.id !== "typingRow") {{
                     chatbox.removeChild(child);
                 }}
             }});
@@ -488,7 +493,7 @@ HTML_PAGE = f"""
         }});
 
         // Socket Events
-        socket.on('user_count', (data) => {{ onlineCountEl.innerText = `${{data.count}} Online`; }});
+        socket.on('user_count', (data) => {{ onlineCountEl.innerText = `${{data.count}}`; }});
         
         socket.on('match_found', (data) => {{
             clearChat();
@@ -663,7 +668,6 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     debug = os.getenv('DEBUG', 'False').lower() == 'true'
     
-    # Updated execution block
     socketio.run(
         app, 
         host="0.0.0.0", 

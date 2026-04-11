@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-04-11
+### Changed
+- UI: Removed the word "Online" from the live counter badge to save space for larger numbers.
+- UI: Relocated the version number from the bottom of the chatbox to directly underneath the Elgemo logo in the header.
 
 ## [1.0.4] - 2026-04-11
 ### Changed
