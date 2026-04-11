@@ -15,10 +15,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 profanity.load_censor_words() 
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 # ==========================================
-# FRONTEND: HTML/CSS/JS (Elgemo v1.0.3)
+# FRONTEND: HTML/CSS/JS (Elgemo v1.0.4)
 # ==========================================
 HTML_PAGE = f"""
 <!DOCTYPE html>
@@ -67,7 +67,6 @@ HTML_PAGE = f"""
 
         body, html {{
             width: 100%;
-            /* Prevent elastic bounce on mobile */
             overscroll-behavior-y: none; 
         }}
 
@@ -75,7 +74,6 @@ HTML_PAGE = f"""
             background: var(--bg-gradient);
             background-color: var(--bg-base);
             color: var(--text-primary);
-            /* Fallback height, will be overwritten by JS visualViewport */
             height: 100vh; 
             display: flex;
             justify-content: center;
@@ -330,7 +328,7 @@ HTML_PAGE = f"""
 
             #messageInput {{
                 padding: 12px 20px;
-                font-size: 16px !important; /* Prevent iOS zoom */
+                font-size: 16px !important; 
             }}
             
             #sendBtn {{ width: 44px; height: 44px; }}
@@ -394,24 +392,15 @@ HTML_PAGE = f"""
         let currentState = "IDLE"; 
         let typingTimeout;
 
-        // ==========================================
-        // THE DEFINITIVE MOBILE KEYBOARD FIX
-        // ==========================================
+        // Visual Viewport Fix
         if (window.visualViewport) {{
             const adjustAppHeight = () => {{
-                // Force the body height to exactly match the visible screen space
                 document.body.style.height = `${{window.visualViewport.height}}px`;
-                // Keep the chat scrolled to the bottom
                 chatbox.scrollTop = chatbox.scrollHeight;
             }};
-            
-            // Listen for the keyboard popping up or dismissing
             window.visualViewport.addEventListener('resize', adjustAppHeight);
-            
-            // Set initial height
             adjustAppHeight();
         }}
-        // ==========================================
 
         function updateUI(state) {{
             currentState = state;
@@ -673,4 +662,12 @@ def index():
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     debug = os.getenv('DEBUG', 'False').lower() == 'true'
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug)
+    
+    # Updated execution block
+    socketio.run(
+        app, 
+        host="0.0.0.0", 
+        port=port, 
+        debug=debug, 
+        allow_unsafe_werkzeug=True
+    )

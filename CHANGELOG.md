@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+
+## [1.0.4] - 2026-04-11
+### Changed
+- Backend: Appended `allow_unsafe_werkzeug=True` to the Socket.IO execution block to bypass development server restrictions in local/containerized environments.
+
 ## [1.0.3] - 2026-04-11
 ### Fixed
 - Mobile UI: Replaced CSS-only viewport height with the JavaScript `window.visualViewport` API to definitively fix virtual keyboard overlap.

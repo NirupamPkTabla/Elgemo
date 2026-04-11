@@ -1,0 +1,19 @@
+[Unit]
+Description=Elgemo : Stranger Chat Service
+After=network.target
+
+[Service]
+User=pi
+Group=pi
+
+WorkingDirectory=/mnt/usb1/homelab/Elgemo
+EnvironmentFile=/mnt/usb1/homelab/Elgemo/.env
+ExecStart=/usr/bin/python3 /mnt/usb1/homelab/Elgemo/main.py
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
