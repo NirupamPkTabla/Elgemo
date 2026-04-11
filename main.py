@@ -1,28 +1,35 @@
-from flask import Flask, request
-from flask_socketio import SocketIO, join_room, leave_room, emit, disconnect
+import os
 import uuid
 import time
+from flask import Flask, request
+from flask_socketio import SocketIO, join_room, leave_room, emit, disconnect
 from better_profanity import profanity 
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 profanity.load_censor_words() 
 
+VERSION = "1.0.3"
+
 # ==========================================
-# FRONTEND: HTML/CSS/JS (Elgemo v0.9.1)
+# FRONTEND: HTML/CSS/JS (Elgemo v1.0.3)
 # ==========================================
-HTML_PAGE = """
+HTML_PAGE = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Elgemo</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
+        :root {{
             --bg-base: #000000; 
             --bg-gradient: #000000; 
             --glass-bg: rgba(12, 12, 12, 0.85); 
@@ -35,9 +42,9 @@ HTML_PAGE = """
             --input-bg: rgba(10, 10, 10, 0.8);
             --focus-ring: rgba(234, 88, 12, 0.25);
             --focus-border: #ea580c;
-        }
+        }}
 
-        :root[data-theme="light"] {
+        :root[data-theme="light"] {{
             --bg-base: #f5f5f5;
             --bg-gradient: radial-gradient(circle at top left, #ffffff, #f5f5f5);
             --glass-bg: rgba(255, 255, 255, 0.9);
@@ -49,39 +56,35 @@ HTML_PAGE = """
             --input-bg: rgba(255, 255, 255, 1);
             --focus-ring: rgba(234, 88, 12, 0.2);
             --focus-border: #ea580c;
-        }
+        }}
 
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme="dark"]) {
-                --bg-base: #f5f5f5;
-                --bg-gradient: radial-gradient(circle at top left, #ffffff, #f5f5f5);
-                --glass-bg: rgba(255, 255, 255, 0.9);
-                --glass-border: rgba(0, 0, 0, 0.1);
-                --text-primary: #0a0a0a;
-                --text-secondary: #525252;
-                --bubble-me: linear-gradient(135deg, #ea580c, #dc2626);
-                --bubble-stranger: #e5e5e5;
-                --input-bg: rgba(255, 255, 255, 1);
-                --focus-ring: rgba(234, 88, 12, 0.2);
-                --focus-border: #ea580c;
-            }
-        }
+        * {{ 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+        }}
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body, html {{
+            width: 100%;
+            /* Prevent elastic bounce on mobile */
+            overscroll-behavior-y: none; 
+        }}
 
-        body { 
+        body {{ 
             background: var(--bg-gradient);
             background-color: var(--bg-base);
             color: var(--text-primary);
-            height: 100dvh; 
+            /* Fallback height, will be overwritten by JS visualViewport */
+            height: 100vh; 
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            transition: background-color 0.3s, background 0.3s, color 0.3s;
-        }
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }}
 
-        .app-container {
+        .app-container {{
             position: relative;
             display: flex;
             flex-direction: column;
@@ -94,10 +97,10 @@ HTML_PAGE = """
             border-left: 1px solid var(--glass-border);
             border-right: 1px solid var(--glass-border);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-            transition: background 0.3s, border-color 0.3s;
-        }
+            transition: background 0.4s ease, border-color 0.4s ease;
+        }}
 
-        .modal-overlay {
+        .modal-overlay {{
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.6);
@@ -108,9 +111,10 @@ HTML_PAGE = """
             align-items: center;
             z-index: 100;
             border-radius: inherit;
-        }
+            transition: opacity 0.3s ease;
+        }}
 
-        .modal-content {
+        .modal-content {{
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             padding: 32px;
@@ -118,49 +122,49 @@ HTML_PAGE = """
             max-width: 420px;
             width: 90%;
             box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
+            animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }}
 
-        .modal-content h2 {
+        .modal-content h2 {{
             margin-bottom: 20px;
             font-size: 1.5rem;
             font-weight: 800;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
+        }}
 
-        .cautions-list {
+        .cautions-list {{
             margin-left: 20px;
             color: var(--text-secondary);
             line-height: 1.6;
             font-size: 0.95rem;
-        }
+        }}
 
-        .cautions-list li { margin-bottom: 14px; }
-        .cautions-list strong { color: var(--text-primary); }
+        .cautions-list li {{ margin-bottom: 14px; }}
+        .cautions-list strong {{ color: var(--text-primary); }}
 
-        .header {
+        .header {{
             padding: 20px 24px;
             border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 10;
-        }
+        }}
         
-        .header-left { display: flex; align-items: center; gap: 14px; }
+        .header-left {{ display: flex; align-items: center; gap: 14px; }}
         
-        .header h1 { 
+        .header h1 {{ 
             font-size: 1.5rem; 
             font-weight: 800; 
             letter-spacing: -0.5px;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
+        }}
 
-        .online-badge {
+        .online-badge {{
             background: rgba(34, 197, 94, 0.15);
             color: #22c55e;
             border: 1px solid rgba(34, 197, 94, 0.3);
@@ -171,21 +175,33 @@ HTML_PAGE = """
             display: flex;
             align-items: center;
             gap: 6px;
-        }
+            white-space: nowrap;
+        }}
 
-        .online-badge::before {
+        :root[data-theme="light"] .online-badge {{
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border-color: rgba(34, 197, 94, 0.3);
+        }}
+
+        .online-badge::before {{
             content: "";
             display: block;
-            width: 6px; height: 6px;
+            width: 6px;
+            height: 6px;
             background-color: currentColor;
             border-radius: 50%;
             box-shadow: 0 0 6px currentColor;
             animation: pulse 2s infinite;
-        }
+        }}
 
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        @keyframes pulse {{
+            0% {{ opacity: 0.5; }}
+            50% {{ opacity: 1; }}
+            100% {{ opacity: 0.5; }}
+        }}
 
-        .theme-toggle {
+        .theme-toggle {{
             background: transparent;
             border: none;
             cursor: pointer;
@@ -195,10 +211,12 @@ HTML_PAGE = """
             justify-content: center;
             padding: 8px;
             border-radius: 50%;
-        }
-        .theme-toggle svg { width: 22px; height: 22px; fill: currentColor; }
+            transition: background 0.2s, color 0.2s;
+        }}
+        .theme-toggle:hover {{ background: var(--bubble-stranger); color: var(--text-primary); }}
+        .theme-toggle svg {{ width: 22px; height: 22px; fill: currentColor; }}
 
-        .btn {
+        .btn {{
             padding: 10px 24px;
             border: none;
             border-radius: 999px;
@@ -206,24 +224,19 @@ HTML_PAGE = """
             font-size: 0.9rem;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
         
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn:active:not(:disabled) { transform: scale(0.95); }
+        .btn:disabled {{ opacity: 0.4; cursor: not-allowed; transform: scale(1) !important; }}
+        .btn:hover:not(:disabled) {{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }}
+        .btn:active:not(:disabled) {{ transform: scale(0.95); box-shadow: none; }}
         
-        .btn-primary { 
-            background: var(--accent-gradient); 
-            color: white; 
-            box-shadow: 0 4px 15px rgba(234, 88, 12, 0.25);
-        }
-        
-        .btn-secondary { 
-            background: var(--bubble-stranger); 
-            color: var(--text-primary); 
-            border: 1px solid var(--glass-border);
-        }
+        .btn-primary {{ background: var(--accent-gradient); color: white; box-shadow: 0 4px 15px rgba(234, 88, 12, 0.25); }}
+        .btn-secondary {{ background: var(--bubble-stranger); color: var(--text-primary); border: 1px solid var(--glass-border); }}
 
-        #chatbox {
+        #chatbox {{
             flex-grow: 1;
             padding: 24px;
             overflow-y: auto;
@@ -231,22 +244,31 @@ HTML_PAGE = """
             flex-direction: column;
             gap: 16px;
             scroll-behavior: smooth;
-        }
+            position: relative;
+        }}
 
-        #chatbox::-webkit-scrollbar { width: 6px; }
-        #chatbox::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        #chatbox::-webkit-scrollbar {{ width: 6px; }}
+        #chatbox::-webkit-scrollbar-thumb {{ background: var(--glass-border); border-radius: 10px; }}
 
-        .message-row { display: flex; width: 100%; animation: slideIn 0.3s ease-out forwards; }
-        .message-row.me { justify-content: flex-end; }
-        .message-row.stranger { justify-content: flex-start; }
-        .message-row.system { justify-content: center; margin: 16px 0; }
+        .version-label {{
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            opacity: 0.5;
+            pointer-events: none;
+            font-weight: 500;
+        }}
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .message-row {{ display: flex; width: 100%; animation: slideInUp 0.3s ease-out forwards; }}
+        .message-row.me {{ justify-content: flex-end; }}
+        .message-row.stranger {{ justify-content: flex-start; }}
+        .message-row.system {{ justify-content: center; margin: 16px 0; }}
 
-        .bubble {
+        @keyframes slideInUp {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+
+        .bubble {{
             max-width: 80%;
             padding: 12px 18px;
             border-radius: 24px;
@@ -254,30 +276,66 @@ HTML_PAGE = """
             line-height: 1.5;
             font-size: 0.95rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+        }}
         
-        .me .bubble { background: var(--bubble-me); color: white; border-bottom-right-radius: 6px; }
-        .stranger .bubble { background: var(--bubble-stranger); color: var(--text-primary); border-bottom-left-radius: 6px; border: 1px solid var(--glass-border); }
-        .system .bubble { background: transparent; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; border: 1px solid var(--glass-border); border-radius: 999px; padding: 4px 12px; }
+        .me .bubble {{ background: var(--bubble-me); color: white; border-bottom-right-radius: 6px; }}
+        .stranger .bubble {{ background: var(--bubble-stranger); color: var(--text-primary); border-bottom-left-radius: 6px; border: 1px solid var(--glass-border); }}
+        .system .bubble {{ background: transparent; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; box-shadow: none; padding: 4px 12px; border: 1px solid var(--glass-border); border-radius: 999px; }}
 
-        .typing-indicator { display: none; align-items: center; gap: 6px; padding: 16px 20px !important; }
-        .dot { width: 6px; height: 6px; background-color: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
-        .dot:nth-child(1) { animation-delay: -0.32s; }
-        .dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.4;} 40% { transform: scale(1); opacity: 1;} }
+        .typing-indicator {{ display: none; align-items: center; gap: 6px; padding: 16px 20px !important; }}
+        .dot {{ width: 6px; height: 6px; background-color: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }}
+        .dot:nth-child(1) {{ animation-delay: -0.32s; }}
+        .dot:nth-child(2) {{ animation-delay: -0.16s; }}
+        @keyframes bounce {{ 0%, 80%, 100% {{ transform: scale(0); opacity: 0.4;}} 40% {{ transform: scale(1); opacity: 1;}} }}
 
-        .input-area { padding: 16px 24px 24px 24px; display: flex; gap: 12px; }
-        .input-wrapper { flex-grow: 1; position: relative; display: flex; align-items: center; }
-        #messageInput { width: 100%; padding: 16px 24px; border: 1px solid var(--glass-border); border-radius: 999px; background-color: var(--input-bg); color: var(--text-primary); outline: none; font-size: 1rem; backdrop-filter: blur(10px); }
-        #messageInput:focus { border-color: var(--focus-border); box-shadow: 0 0 0 3px var(--focus-ring); }
-        #sendBtn { border-radius: 50%; width: 50px; height: 50px; padding: 0; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
-        .send-icon { width: 20px; height: 20px; fill: white; transform: translateX(2px); }
+        .input-area {{
+            padding: 16px 24px 24px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            background: transparent;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }}
+        
+        .input-wrapper {{ flex-grow: 1; position: relative; display: flex; align-items: center; }}
 
-        @media (max-width: 600px) {
-            .header { padding: 16px; }
-            #chatbox { padding: 16px; }
-            .input-area { padding: 12px 16px 16px 16px; }
-        }
+        #messageInput {{
+            width: 100%;
+            padding: 16px 24px;
+            border: 1px solid var(--glass-border);
+            border-radius: 999px;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            outline: none;
+            font-size: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s;
+            backdrop-filter: blur(10px);
+            -webkit-appearance: none; 
+        }}
+
+        #messageInput:focus {{ border-color: var(--focus-border); box-shadow: 0 0 0 3px var(--focus-ring); }}
+
+        #sendBtn {{ border-radius: 50%; width: 50px; height: 50px; padding: 0; flex-shrink: 0; }}
+        .send-icon {{ width: 20px; height: 20px; fill: white; transform: translateX(2px); }}
+
+        @media (max-width: 600px) {{
+            .app-container {{ border-radius: 0; border: none; }}
+            .header {{ padding: 16px; }}
+            #chatbox {{ padding: 16px; }}
+            
+            .input-area {{ 
+                padding: 12px 16px max(16px, env(safe-area-inset-bottom)) 16px; 
+            }}
+
+            #messageInput {{
+                padding: 12px 20px;
+                font-size: 16px !important; /* Prevent iOS zoom */
+            }}
+            
+            #sendBtn {{ width: 44px; height: 44px; }}
+            .send-icon {{ width: 18px; height: 18px; }}
+        }}
     </style>
 </head>
 <body>
@@ -287,8 +345,8 @@ HTML_PAGE = """
                 <h2>Welcome to Elgemo</h2>
                 <ul class="cautions-list">
                     <li><strong>No Profanity:</strong> Using explicit language 3 times will trigger an automatic 5-minute IP ban.</li>
-                    <li><strong>Stay Safe:</strong> Do not share personal information or links.</li>
-                    <li><strong>Be Respectful:</strong> Treat others with kindness.</li>
+                    <li><strong>Stay Safe:</strong> Do not share personal information, links, or contact details.</li>
+                    <li><strong>Be Respectful:</strong> Treat your chat partners with kindness and respect.</li>
                 </ul>
                 <button id="acceptRulesBtn" class="btn btn-primary" style="width: 100%; margin-top: 24px; padding: 14px;">I Understand</button>
             </div>
@@ -298,7 +356,7 @@ HTML_PAGE = """
             <div class="header-left">
                 <h1>Elgemo</h1>
                 <span id="onlineCount" class="online-badge">1 Online</span>
-                <button id="themeToggle" class="theme-toggle"></button>
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme"></button>
             </div>
             <div>
                 <button id="actionBtn" class="btn btn-primary">Find Match</button>
@@ -307,8 +365,11 @@ HTML_PAGE = """
         
         <div id="chatbox">
             <div id="typingRow" class="message-row stranger" style="display: none;">
-                <div class="bubble typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                <div class="bubble typing-indicator">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
             </div>
+            <div class="version-label">v{VERSION}</div>
         </div>
         
         <div class="input-area">
@@ -330,13 +391,31 @@ HTML_PAGE = """
         const onlineCountEl = document.getElementById("onlineCount");
         const sendBtn = document.getElementById("sendBtn");
         
-        let currentState = "IDLE"; // IDLE, SEARCHING, CHATTING
+        let currentState = "IDLE"; 
         let typingTimeout;
 
-        // UI State Controller
-        function updateUI(state) {
+        // ==========================================
+        // THE DEFINITIVE MOBILE KEYBOARD FIX
+        // ==========================================
+        if (window.visualViewport) {{
+            const adjustAppHeight = () => {{
+                // Force the body height to exactly match the visible screen space
+                document.body.style.height = `${{window.visualViewport.height}}px`;
+                // Keep the chat scrolled to the bottom
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }};
+            
+            // Listen for the keyboard popping up or dismissing
+            window.visualViewport.addEventListener('resize', adjustAppHeight);
+            
+            // Set initial height
+            adjustAppHeight();
+        }}
+        // ==========================================
+
+        function updateUI(state) {{
             currentState = state;
-            switch(state) {
+            switch(state) {{
                 case "IDLE":
                     actionBtn.innerText = "Find Match";
                     actionBtn.className = "btn btn-primary";
@@ -360,24 +439,23 @@ HTML_PAGE = """
                     sendBtn.disabled = false;
                     messageInput.focus();
                     break;
-            }
-        }
+            }}
+        }}
 
-        actionBtn.onclick = () => {
-            if (currentState === "IDLE") {
+        actionBtn.onclick = () => {{
+            if (currentState === "IDLE") {{
                 clearChat();
                 socket.emit('start_search');
                 printMessage("Looking for someone...", "system");
                 updateUI("SEARCHING");
-            } else {
-                // Clicking "Stop" while SEARCHING or CHATTING
-                socket.emit('skip'); // Re-using skip logic to end current session/search
+            }} else {{
+                socket.emit('skip'); 
                 printMessage("Session stopped.", "system");
                 updateUI("IDLE");
-            }
-        };
+            }}
+        }};
 
-        function printMessage(text, senderType) {
+        function printMessage(text, senderType) {{
             const row = document.createElement("div");
             row.className = "message-row " + senderType;
             const bubble = document.createElement("div");
@@ -386,87 +464,113 @@ HTML_PAGE = """
             row.appendChild(bubble);
             chatbox.insertBefore(row, typingRow);
             chatbox.scrollTop = chatbox.scrollHeight;
-        }
+        }}
 
-        function clearChat() {
-            Array.from(chatbox.children).forEach(child => {
-                if(child.id !== "typingRow") chatbox.removeChild(child);
-            });
-        }
+        function clearChat() {{
+            Array.from(chatbox.children).forEach(child => {{
+                if(child.id !== "typingRow" && !child.classList.contains('version-label')) {{
+                    chatbox.removeChild(child);
+                }}
+            }});
+        }}
 
-        function sendMessage() {
-            if (messageInput.value.trim() !== "") {
+        function sendMessage() {{
+            if (messageInput.value.trim() !== "") {{
                 const text = messageInput.value;
-                socket.emit('chat_message', { text: text });
+                socket.emit('chat_message', {{ text: text }});
                 printMessage(text, "me"); 
                 messageInput.value = "";
-                socket.emit('typing', { is_typing: false });
-            }
-        }
+                socket.emit('typing', {{ is_typing: false }});
+            }}
+        }}
 
         sendBtn.onclick = sendMessage;
-        messageInput.onkeypress = (e) => { if (e.key === "Enter") sendMessage(); };
-        messageInput.oninput = () => {
-            socket.emit('typing', { is_typing: true });
+        
+        messageInput.addEventListener("keypress", (e) => {{
+            if (e.key === "Enter") sendMessage();
+        }});
+        
+        messageInput.addEventListener("input", () => {{
+            socket.emit('typing', {{ is_typing: true }});
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => socket.emit('typing', { is_typing: false }), 1500);
-        };
+            typingTimeout = setTimeout(() => {{
+                socket.emit('typing', {{ is_typing: false }});
+            }}, 1500);
+        }});
 
         // Socket Events
-        socket.on('user_count', (data) => onlineCountEl.innerText = `${data.count} Online`);
-        socket.on('match_found', (data) => {
+        socket.on('user_count', (data) => {{ onlineCountEl.innerText = `${{data.count}} Online`; }});
+        
+        socket.on('match_found', (data) => {{
             clearChat();
-            printMessage(`Connected with someone from ${data.country}`, "system");
+            printMessage(`Connected with someone from ${{data.country}}`, "system");
             updateUI("CHATTING");
-        });
-        socket.on('chat_message', (data) => {
+        }});
+        
+        socket.on('chat_message', (data) => {{
             typingRow.style.display = "none"; 
             printMessage(data.text, "stranger");
-        });
-        socket.on('typing', (data) => {
+        }});
+        
+        socket.on('typing', (data) => {{
             typingRow.style.display = data.is_typing ? "flex" : "none";
             if(data.is_typing) chatbox.scrollTop = chatbox.scrollHeight;
-        });
-        socket.on('stranger_disconnected', () => {
+        }});
+        
+        socket.on('stranger_disconnected', () => {{
             printMessage("Stranger has disconnected.", "system");
             updateUI("IDLE"); 
-        });
+        }});
+        
         socket.on('system_message', (data) => printMessage(data.msg, "system"));
-        socket.on('banned', (data) => {
+        
+        socket.on('banned', (data) => {{
             printMessage(data.msg, "system");
             updateUI("IDLE");
             actionBtn.disabled = true;
             socket.disconnect(); 
-        });
+        }});
 
-        // Theme and Modal
-        document.getElementById('acceptRulesBtn').onclick = () => {
+        // Modal Logic
+        document.getElementById('acceptRulesBtn').addEventListener('click', () => {{
             const modal = document.getElementById('welcomeModal');
             modal.style.opacity = '0';
-            setTimeout(() => modal.style.display = 'none', 300);
-        };
+            setTimeout(() => {{ modal.style.display = 'none'; }}, 300);
+        }});
         
-        // Theme Toggle
-        const themeBtn = document.getElementById('themeToggle');
-        const sun = `<svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>`;
-        const moon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        // Theme Toggle Logic
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const sunIcon = `<svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>`;
+        const moonIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+        function updateToggleIcon() {{
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            themeToggleBtn.innerHTML = currentTheme === 'light' ? moonIcon : sunIcon;
+        }}
+
+        themeToggleBtn.onclick = () => {{
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateToggleIcon();
+        }};
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {{
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {{
+            document.documentElement.setAttribute('data-theme', 'light');
+        }}
         
-        function setIcon() { themeBtn.innerHTML = document.documentElement.getAttribute('data-theme') === 'light' ? moon : sun; }
-        themeBtn.onclick = () => {
-            const t = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', t);
-            localStorage.setItem('theme', t);
-            setIcon();
-        };
-        if(localStorage.getItem('theme')) document.documentElement.setAttribute('data-theme', localStorage.getItem('theme'));
-        setIcon();
+        updateToggleIcon();
     </script>
 </body>
 </html>
 """
 
 # ==========================================
-# WEBSOCKET STATE & LOGIC (Updated Cleanup)
+# WEBSOCKET STATE & LOGIC
 # ==========================================
 waiting_queue = []
 user_data = {}  
@@ -563,7 +667,10 @@ def cleanup_user(session_id):
             emit('stranger_disconnected', to=partner_id)
 
 @app.route('/')
-def index(): return HTML_PAGE
+def index(): 
+    return HTML_PAGE
 
 if __name__ == '__main__':
-    socketio.run(app, host="0.0.0.0", port=8000, debug=True)
+    port = int(os.getenv('PORT', 8000))
+    debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug)

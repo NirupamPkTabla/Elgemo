@@ -1,6 +1,31 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2026-04-11
+### Fixed
+- Mobile UI: Replaced CSS-only viewport height with the JavaScript `window.visualViewport` API to definitively fix virtual keyboard overlap.
+- Mobile UI: Added `overscroll-behavior-y: none;` to the body to prevent the "elastic bounce" effect on iOS when scrolling near the edges.
+
+## [1.0.2] - 2026-04-10
+### Fixed
+- Mobile UI: Added `viewport-fit=cover` to meta tags for better edge-to-edge screen handling.
+- Mobile UI: Forced `#messageInput` to exactly `16px` font-size on mobile to prevent iOS Safari auto-zooming on focus.
+- Mobile UI: Implemented `env(safe-area-inset-bottom)` to ensure the input area is not covered by the iOS/Android home bar indicators.
+- Mobile UI: Added a focus listener to the input to ensure the chatbox scrolls to the bottom when the keyboard pops up.
+
+## [1.0.1] - 2026-04-10
+### Fixed
+- UI: Restored the premium "glassmorphism" look and feel from the 0.6.x/0.7.x era.
+- UI: Reintroduced smooth CSS transitions, soft box-shadows, generous padding, and proper hover/active states for buttons that were lost during code minification.
+- UI: Un-minified frontend code for better readability and maintainability.
+
+## [1.0.0] - 2026-04-10
+### Added
+- Production: Implemented `.env` support for sensitive and environment-specific variables (Port, Debug, Secret Key).
+- UI: Added a version tag (v1.0.0) in the footer of the application for easier tracking.
+### Changed
+- Refactored server launch logic to prioritize environment variables.
+
 ## [0.9.1] - 2026-04-10
 ### Changed
 - UI Logic: Replaced the "Skip" button with a dynamic stateful button.
