@@ -1,6 +1,8 @@
+> **Disclaimer:** This project has been entirely developed and generated using Google Gemini.
+
 # Elgemo 💬
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Flask](https://img.shields.io/badge/Flask-3.0.3-black.svg)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-5.3.6-black.svg)

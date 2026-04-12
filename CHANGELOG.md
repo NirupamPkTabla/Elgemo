@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.0.6] - 2026-04-12
+### Changed
+- Minor fixes and optimisations.
+
 ## [1.0.5] - 2026-04-11
 ### Changed
 - UI: Removed the word "Online" from the live counter badge to save space for larger numbers.

@@ -6,7 +6,6 @@ from flask_socketio import SocketIO, join_room, leave_room, emit, disconnect
 from better_profanity import profanity 
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -15,11 +14,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 profanity.load_censor_words() 
 
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
-# ==========================================
-# FRONTEND: HTML/CSS/JS (Elgemo v1.0.5)
-# ==========================================
 HTML_PAGE = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -397,7 +393,6 @@ HTML_PAGE = f"""
         let currentState = "IDLE"; 
         let typingTimeout;
 
-        // Visual Viewport Fix
         if (window.visualViewport) {{
             const adjustAppHeight = () => {{
                 document.body.style.height = `${{window.visualViewport.height}}px`;
@@ -492,7 +487,6 @@ HTML_PAGE = f"""
             }}, 1500);
         }});
 
-        // Socket Events
         socket.on('user_count', (data) => {{ onlineCountEl.innerText = `${{data.count}}`; }});
         
         socket.on('match_found', (data) => {{
@@ -525,14 +519,12 @@ HTML_PAGE = f"""
             socket.disconnect(); 
         }});
 
-        // Modal Logic
         document.getElementById('acceptRulesBtn').addEventListener('click', () => {{
             const modal = document.getElementById('welcomeModal');
             modal.style.opacity = '0';
             setTimeout(() => {{ modal.style.display = 'none'; }}, 300);
         }});
         
-        // Theme Toggle Logic
         const themeToggleBtn = document.getElementById('themeToggle');
         const sunIcon = `<svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>`;
         const moonIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
@@ -563,9 +555,6 @@ HTML_PAGE = f"""
 </html>
 """
 
-# ==========================================
-# WEBSOCKET STATE & LOGIC
-# ==========================================
 waiting_queue = []
 user_data = {}  
 user_rooms = {} 
