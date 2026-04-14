@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-04-15
+### Added
+- Architectural scaling: Migrated all in-memory application state to a Redis backend.
+- Socket.IO message queue configured to use Redis for horizontal scaling support.
+### Changed
+- Minor text formatting and performance optimizations.
+
 ## [1.0.6] - 2026-04-12
 ### Changed
 - Minor fixes and optimisations.

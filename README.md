@@ -2,10 +2,11 @@
 
 # Elgemo 💬
 
-![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Flask](https://img.shields.io/badge/Flask-3.0.3-black.svg)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-5.3.6-black.svg)
+![Redis](https://img.shields.io/badge/Redis-6.0+-red.svg)
 
 Elgemo is a fast, modern, and anonymous real-time chat application. Built with Flask and WebSockets, it pairs users instantly while maintaining a clean, glassmorphic UI that works flawlessly across desktop and mobile devices.
 
@@ -18,7 +19,7 @@ Elgemo is a fast, modern, and anonymous real-time chat application. Built with F
 * **Safety First:** * Built-in profanity filter (`better-profanity`).
   * Automatic 5-minute IP bans for users who trigger the filter 3 times.
 * **Dynamic Theming:** Light and Dark modes with user preference saved to `localStorage`.
-* **Live Status Updates:** Real-time online user count and typing indicators.
+* **Scalable Architecture:** Fully integrates Redis for state management and Socket.IO message queuing, allowing for robust horizontal scaling.
 
 ## 🛠️ Tech Stack
 
@@ -26,6 +27,7 @@ Elgemo is a fast, modern, and anonymous real-time chat application. Built with F
 * Python 3.8+
 * Flask
 * Flask-SocketIO (WebSocket handling)
+* Redis (Application State & Message Broker)
 * better-profanity (Text sanitization)
 
 **Frontend:**
@@ -36,7 +38,7 @@ Elgemo is a fast, modern, and anonymous real-time chat application. Built with F
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-Ensure you have Python 3.8 or higher installed on your machine.
+Ensure you have Python 3.8 or higher installed on your machine. You will also need a running Redis server instance.
 
 ### 2. Installation
 
@@ -56,12 +58,15 @@ source venv/bin/activate
 Install the required dependencies:
 pip install -r requirements.txt
 
+*(Note: Make sure to add `redis` to your requirements.txt file)*
+
 ### 3. Environment Variables
 Create a `.env` file in the root directory to configure the application (optional but recommended for production):
 
 SECRET_KEY=your-super-secret-key
 PORT=8000
 DEBUG=True
+REDIS_URL=redis://localhost:55505/0
 
 ### 4. Run the Application
 Start the server:

@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+import redis
 from flask import Flask, request
 from flask_socketio import SocketIO, join_room, leave_room, emit, disconnect
 from better_profanity import profanity 
@@ -10,11 +11,16 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-socketio = SocketIO(app, cors_allowed_origins="*")
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:55505/0')
+
+r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+socketio = SocketIO(app, cors_allowed_origins="*", message_queue=REDIS_URL)
 
 profanity.load_censor_words() 
 
-VERSION = "1.0.6"
+VERSION = "1.1.0"
+RATE_LIMIT_SECONDS = 0.5 
 
 HTML_PAGE = f"""
 <!DOCTYPE html>
@@ -355,7 +361,7 @@ HTML_PAGE = f"""
                     <h1>Elgemo</h1>
                     <span class="version-text">v{VERSION}</span>
                 </div>
-                <span id="onlineCount" class="online-badge">1</span>
+                <span id="onlineCount" class="online-badge">0</span>
                 <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme"></button>
             </div>
             <div>
@@ -555,73 +561,102 @@ HTML_PAGE = f"""
 </html>
 """
 
-waiting_queue = []
-user_data = {}  
-user_rooms = {} 
-user_last_message = {} 
-banned_ips = {} 
-RATE_LIMIT_SECONDS = 0.5 
-
 def get_client_ip():
     return request.headers.get('CF-Connecting-IP', request.headers.get('X-Forwarded-For', request.remote_addr))
 
 @socketio.on('connect')
 def handle_connect():
     ip = get_client_ip()
-    if ip in banned_ips and time.time() < banned_ips[ip]:
+    if r.exists(f"banned:{ip}"):
         emit('banned', {'msg': 'Connection refused: Your IP is temporarily banned.'})
         disconnect()
         return False
+        
     session_id = request.sid
-    user_data[session_id] = {"country": request.headers.get("CF-IPCountry", "Unknown"), "ip": ip, "strikes": 0}
-    emit('user_count', {'count': len(user_data)}, broadcast=True)
+    country = request.headers.get("CF-IPCountry", "Unknown")
+    
+    r.hset(f"user:{session_id}", mapping={"country": country, "ip": ip, "strikes": 0})
+    r.sadd("active_users", session_id)
+    
+    count = r.scard("active_users")
+    emit('user_count', {'count': count}, broadcast=True)
 
 @socketio.on('start_search')
 def handle_search():
     session_id = request.sid
-    global waiting_queue
-    if session_id in user_rooms or session_id in waiting_queue: return
-    if waiting_queue:
-        partner_id = waiting_queue.pop(0)
+    
+    if r.hget("user_rooms", session_id): 
+        return
+    if r.sismember("in_queue", session_id): 
+        return
+        
+    partner_id = r.lpop("waiting_queue")
+    
+    if partner_id:
+        r.srem("in_queue", partner_id)
+        
+        if partner_id == session_id or not r.exists(f"user:{partner_id}"):
+            r.rpush("waiting_queue", session_id)
+            r.sadd("in_queue", session_id)
+            return
+            
         room_id = str(uuid.uuid4())
-        user_rooms[session_id] = room_id
-        user_rooms[partner_id] = room_id
+        
+        r.hset("user_rooms", session_id, room_id)
+        r.hset("user_rooms", partner_id, room_id)
+        r.sadd(f"room_users:{room_id}", session_id, partner_id)
+        
         join_room(room_id)
         join_room(room_id, sid=partner_id, namespace='/')
-        emit('match_found', {'country': user_data[partner_id]['country']}, to=session_id)
-        emit('match_found', {'country': user_data[session_id]['country']}, to=partner_id)
+        
+        p_country = r.hget(f"user:{partner_id}", "country") or "Unknown"
+        s_country = r.hget(f"user:{session_id}", "country") or "Unknown"
+        
+        emit('match_found', {'country': p_country}, to=session_id)
+        emit('match_found', {'country': s_country}, to=partner_id)
     else:
-        waiting_queue.append(session_id)
+        r.rpush("waiting_queue", session_id)
+        r.sadd("in_queue", session_id)
 
 @socketio.on('chat_message')
 def handle_message(data):
     session_id = request.sid
     current_time = time.time()
-    last_time = user_last_message.get(session_id, 0)
+    last_time = float(r.get(f"last_msg:{session_id}") or 0)
+    
     if current_time - last_time < RATE_LIMIT_SECONDS:
         emit('system_message', {'msg': 'You are sending messages too fast.'}, to=session_id)
         return
-    user_last_message[session_id] = current_time
-    if session_id in user_rooms:
-        room_id = user_rooms[session_id]
+        
+    r.set(f"last_msg:{session_id}", current_time)
+    
+    room_id = r.hget("user_rooms", session_id)
+    if room_id:
         raw_text = data.get('text', '')
         clean_text = profanity.censor(raw_text)
+        
         if raw_text != clean_text:
-            user_data[session_id]["strikes"] += 1
-            if user_data[session_id]["strikes"] >= 3:
-                ip = user_data[session_id]["ip"]
-                banned_ips[ip] = time.time() + 300 
+            strikes = r.hincrby(f"user:{session_id}", "strikes", 1)
+            if strikes >= 3:
+                ip = r.hget(f"user:{session_id}", "ip")
+                if ip:
+                    r.setex(f"banned:{ip}", 300, "1")
                 emit('banned', {'msg': 'You have been banned for 5 minutes due to profanity.'}, to=session_id)
-                partner_id = next((sid for sid, rid in user_rooms.items() if rid == room_id and sid != session_id), None)
-                if partner_id: emit('system_message', {'msg': 'We disconnected the user to maintain good service.'}, to=partner_id)
+                
+                users = r.smembers(f"room_users:{room_id}")
+                partner_id = next((u for u in users if u != session_id), None)
+                if partner_id: 
+                    emit('system_message', {'msg': 'We disconnected the user to maintain good service.'}, to=partner_id)
                 disconnect()
                 return
+                
         emit('chat_message', {'text': clean_text}, to=room_id, include_self=False)
 
 @socketio.on('typing')
 def handle_typing(data):
-    if request.sid in user_rooms:
-        emit('typing', {'is_typing': data['is_typing']}, to=user_rooms[request.sid], include_self=False)
+    room_id = r.hget("user_rooms", request.sid)
+    if room_id:
+        emit('typing', {'is_typing': data['is_typing']}, to=room_id, include_self=False)
 
 @socketio.on('skip')
 def handle_skip():
@@ -631,23 +666,32 @@ def handle_skip():
 def handle_disconnect():
     session_id = request.sid
     cleanup_user(session_id)
-    if session_id in user_data: 
-        del user_data[session_id]
-        emit('user_count', {'count': len(user_data)}, broadcast=True)
+    
+    if r.exists(f"user:{session_id}"):
+        r.delete(f"user:{session_id}")
+        r.srem("active_users", session_id)
+        count = r.scard("active_users")
+        emit('user_count', {'count': count}, broadcast=True)
 
 def cleanup_user(session_id):
-    global waiting_queue
-    if session_id in waiting_queue: waiting_queue.remove(session_id)
-    if session_id in user_last_message: del user_last_message[session_id]
-    if session_id in user_rooms:
-        room_id = user_rooms[session_id]
-        partner_id = next((sid for sid, rid in user_rooms.items() if rid == room_id and sid != session_id), None)
-        del user_rooms[session_id]
+    r.lrem("waiting_queue", 0, session_id)
+    r.srem("in_queue", session_id)
+    r.delete(f"last_msg:{session_id}")
+    
+    room_id = r.hget("user_rooms", session_id)
+    if room_id:
+        users = r.smembers(f"room_users:{room_id}")
+        partner_id = next((u for u in users if u != session_id), None)
+        
+        r.hdel("user_rooms", session_id)
         leave_room(room_id, sid=session_id, namespace='/')
+        
         if partner_id:
-            del user_rooms[partner_id]
+            r.hdel("user_rooms", partner_id)
             leave_room(room_id, sid=partner_id, namespace='/')
             emit('stranger_disconnected', to=partner_id)
+            
+        r.delete(f"room_users:{room_id}")
 
 @app.route('/')
 def index(): 
